@@ -120,11 +120,21 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
                 np.pi / 180,
                 houghline_thres,
             )
-            p1, p2 = self.__polar_to_points(lines[0], image.shape)
+            line = lines[0]
+            start_point, end_point = self.__polar_to_points(line, image.shape)
+            line_draw_img = image.copy()
             if verbose:
-                line_draw_img = image.copy()
-                cv2.line(line_draw_img, p1, p2, (0, 255, 0), 2)
+                cv2.line(line_draw_img, start_point, end_point, (0, 255, 0), 2)
                 view_image(line_draw_img, "Horizon detected")
 
         except Exception as e:
+            logger.error(f"{type(e).__name__}: {e}. Cannot detect lines")
             raise e
+        else:
+            return dict(
+                start_point=start_point,
+                end_point=end_point,
+                line_draw_img=line_draw_img,
+                rho=line[0][0],
+                theta=line[0][1],
+            )

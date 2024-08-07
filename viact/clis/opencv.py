@@ -24,7 +24,7 @@ def detect_horizon(
         with_color_segment=with_color_segment,
         houghline_thres=houghline_thres,
     )
-    image = detector(
+    result_dict = detector(
         image=image,
         num_cluster=num_cluster,
         horizon_estimate_y=horizon_estimate_y,
