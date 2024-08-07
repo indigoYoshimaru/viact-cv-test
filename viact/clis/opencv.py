@@ -11,10 +11,12 @@ app = Typer(
 def detect_horizon(
     image_path: str = "image/three_ships_horizon.JPG",
     with_color_segment: bool = False,
-    horizon_estimate_position: float = 1 / 4,
-    houghline_thres: int = 200,
+    num_cluster: int = 4,
+    horizon_estimate_y: float = 1 / 4,
+    houghline_thres: int = 90,
+    verbose: bool = False,
 ):
-    from viact.image_io import read_image
+    from viact.utils import read_image
     from viact.horizon_detector import HorizonDetectorOpenCV
 
     image, image_shape = read_image(image_path)
@@ -22,7 +24,12 @@ def detect_horizon(
         with_color_segment=with_color_segment,
         houghline_thres=houghline_thres,
     )
-    image = detector(image=image)
+    image = detector(
+        image=image,
+        num_cluster=num_cluster,
+        horizon_estimate_y=horizon_estimate_y,
+        verbose=verbose,
+    )
 
 
 @app.command(name="ship-detect", help="Run ship detection")

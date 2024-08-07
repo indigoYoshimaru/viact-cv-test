@@ -1,9 +1,9 @@
 from typing import Text
 from loguru import logger
+import cv2
 
 
 def read_image(image_path: Text):
-    import cv2
 
     try:
         logger.info(f"Reading image from {image_path}")
@@ -16,4 +16,14 @@ def read_image(image_path: Text):
         return image, image.shape
 
 
-def save_image(image_path: Text): ...
+def save_image(image: cv2.Mat, image_path: Text): ...
+
+
+def view_image(image: cv2.Mat, title: Text):
+    while True: 
+        cv2.imshow(title, image)
+        k = cv2.waitKey(33)
+        if k ==27: 
+            cv2.destroyAllWindows()
+            break
+
