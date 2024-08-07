@@ -3,15 +3,20 @@ from abc import ABC
 from pydantic import BaseModel
 from loguru import logger
 import numpy as np
+from typing import Dict
 
 
 class HorizonDetector(ABC):
 
-    def level_horizon(self): ...
+    def level_horizon(self, image, start_point, end_point): ...
 
-    def crop_black_background(self): ...
+    def crop_black_background(self, image, contours): ...
 
-    def post_process(self): ...
+    def post_process(self, image, result_dict: Dict, verbose: bool = False):
+        theta = result_dict["theta"]
+        if np.sin(theta) == 1:
+            return image, result_dict
+        contours = self.level_horizon()
 
 
 class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
@@ -73,6 +78,31 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
 
         return p1, p2
 
+    def detect_lines(
+        self,
+        preprocessed_image: cv2.Mat,
+        houghline_thres: int,
+        houghline_rho: int,
+        verbose: bool = False,
+    ):
+        from viact.utils import view_image
+
+        gray_img = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2GRAY)
+        ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
+        edges = cv2.Canny(thresh, 50, 150, apertureSize=5)
+
+        if verbose:
+            view_image(edges, "Edges detection")
+
+        lines = cv2.HoughLines(
+            edges,
+            houghline_rho,
+            np.pi / 180,
+            houghline_thres,
+        )
+        logger.info(f"{len(lines)} lines detected")
+        return lines
+
     def __call__(
         self,
         image: cv2.Mat,
@@ -88,7 +118,7 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
             False: self.horizone_pos_estimate_by_y,
         }
 
-        houghline_low_threshold = {
+        houghline_rho_dict = {
             True: 1,
             False: 5,
         }
@@ -107,18 +137,11 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
             raise e
 
         try:
-            gray_img = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2GRAY)
-            ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
-            edges = cv2.Canny(thresh, 50, 150, apertureSize=5)
-
-            if verbose:
-                view_image(edges, "Edges detection")
-
-            lines = cv2.HoughLines(
-                edges,
-                houghline_low_threshold[self.with_color_segment],
-                np.pi / 180,
-                houghline_thres,
+            lines = self.detect_lines(
+                preprocessed_image=preprocessed_image,
+                houghline_thres=houghline_thres,
+                houghline_rho=houghline_rho_dict[self.with_color_segment],
+                verbose=verbose,
             )
             line = lines[0]
             start_point, end_point = self.__polar_to_points(line, image.shape)
