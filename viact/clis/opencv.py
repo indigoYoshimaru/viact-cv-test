@@ -31,6 +31,12 @@ def detect_horizon(
         verbose=verbose,
     )
 
+    cropped_image = detector.post_process(
+        image=image,
+        result_dict=result_dict,
+        verbose=verbose,
+    )
+
 
 @app.command(name="ship-detect", help="Run ship detection")
 def detect_ship(

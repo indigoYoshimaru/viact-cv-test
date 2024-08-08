@@ -4,19 +4,119 @@ from pydantic import BaseModel
 from loguru import logger
 import numpy as np
 from typing import Dict
+from viact.utils import view_image
 
 
 class HorizonDetector(ABC):
 
-    def level_horizon(self, image, start_point, end_point): ...
+    def level_horizon(self, image: cv2.Mat, start_point: tuple, end_point: tuple):
+        try:
+            # calculate the level angle
+            level_angle = np.degrees(
+                np.arctan2(end_point[1] - start_point[1], end_point[0] - start_point[0])
+            )
+            logger.info(f"Rotating image with angle {level_angle}")
 
-    def crop_black_background(self, image, contours): ...
+            # create the rotation matrix to rotate around the start point by the level angle
+            rotate_matrix = cv2.getRotationMatrix2D(
+                start_point, angle=level_angle, scale=1
+            )
+            rotated_image = cv2.warpAffine(
+                src=image, M=rotate_matrix, dsize=(image.shape[1], image.shape[0])
+            )
+
+        except Exception as e:
+            logger.error(f"{type(e).__name__}: {e}. Cannot level the horizon line.")
+            raise e
+        else:
+            logger.success(f"Image rotated successfully.")
+            return rotated_image
+
+    def detect_contours(self, image):
+        grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        ret, thresholded = cv2.threshold(grayscale, 0, 255, 0)
+        contours, hier = cv2.findContours(
+            thresholded,
+            cv2.RETR_TREE,
+            cv2.CHAIN_APPROX_SIMPLE,
+        )
+        return contours[0]
+
+    def find_contours_boundary(
+        self,
+        arg_arr: np.ndarray,
+        project_arr: np.ndarray,
+        mode=np.argmax,
+        reverse: bool = True,
+    ):
+        if reverse:
+            arg = len(arg_arr) - mode(arg_arr[::-1]) - 1
+        else:
+            arg = mode(arg_arr)
+
+        return project_arr[arg]
+
+    def crop_black_background(self, image: cv2.Mat):
+        try:
+            contours = self.detect_contours(image)
+            x_arr, y_arr = contours.T[0][0], contours.T[1][0]
+            y_at_x_max = self.find_contours_boundary(x_arr, y_arr)
+            x_at_y_max = self.find_contours_boundary(y_arr, x_arr)
+            x_min = self.find_contours_boundary(y_arr, x_arr, mode=np.argmin)
+
+            height = image.shape[0]
+            cropped_image = image[
+                y_at_x_max + 2 : y_at_x_max + height - 2, x_min:x_at_y_max
+            ]
+
+        except Exception as e:
+            logger.error(f"{type(e).__name__}: {e}. Cannot crop black background.")
+            raise e
+        else:
+            logger.success(f"Image cropped successfully")
+            return cropped_image
 
     def post_process(self, image, result_dict: Dict, verbose: bool = False):
+
         theta = result_dict["theta"]
+        # the line is already level
         if np.sin(theta) == 1:
+            if verbose:
+                view_image(result_dict["image_line_drawn"], "Sin(theta) = 1")
             return image, result_dict
-        contours = self.level_horizon()
+
+        start_point = result_dict["start_point"]
+        end_point = result_dict["end_point"]
+        line_draw_img = result_dict["image_line_drawn"]
+
+        rotated_image = self.level_horizon(
+            image,
+            start_point=start_point,
+            end_point=end_point,
+        )
+
+        if verbose:
+            vis_rotated_image = self.level_horizon(
+                line_draw_img,
+                start_point=start_point,
+                end_point=end_point,
+            )
+            view_image(vis_rotated_image, "Rotated image")
+
+        cropped_image = self.crop_black_background(rotated_image)
+        if verbose:
+            from viact.utils import draw_grid
+
+            vis_cropped_image = self.crop_black_background(vis_rotated_image)
+            vis_cropped_image_with_grid = draw_grid(
+                vis_cropped_image, grid_shape=(6, 5), color=(0, 0, 255)
+            )
+            view_image(
+                vis_cropped_image_with_grid,
+                "Leveled and Black boundary cropped with grid",
+            )
+
+        return cropped_image
 
 
 class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
@@ -85,7 +185,6 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
         houghline_rho: int,
         verbose: bool = False,
     ):
-        from viact.utils import view_image
 
         gray_img = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2GRAY)
         ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
@@ -145,10 +244,10 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
             )
             line = lines[0]
             start_point, end_point = self.__polar_to_points(line, image.shape)
-            line_draw_img = image.copy()
+            image_line_drawn = image.copy()
             if verbose:
-                cv2.line(line_draw_img, start_point, end_point, (0, 255, 0), 2)
-                view_image(line_draw_img, "Horizon detected")
+                cv2.line(image_line_drawn, start_point, end_point, (0, 255, 0), 2)
+                view_image(image_line_drawn, "Horizon detected")
 
         except Exception as e:
             logger.error(f"{type(e).__name__}: {e}. Cannot detect lines")
@@ -157,7 +256,7 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
             return dict(
                 start_point=start_point,
                 end_point=end_point,
-                line_draw_img=line_draw_img,
+                image_line_drawn=image_line_drawn,
                 rho=line[0][0],
                 theta=line[0][1],
             )
