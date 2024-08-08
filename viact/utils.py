@@ -16,7 +16,21 @@ def read_image(image_path: Text):
         return image, image.shape
 
 
-def save_image(image: cv2.Mat, image_path: Text): ...
+def save_image(image: cv2.Mat, image_name: Text, image_dir: Text = "result"):
+    try:
+        import os
+
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+
+        image_path = os.path.join(image_dir, image_name)
+        logger.info(f"Saving image to {image_path}")
+        cv2.imwrite(filename=image_path, img=image)
+    except Exception as e:
+        logger.error(f"{type(e).__name__}: {e}. Cannot write image to {image_path}")
+        raise e
+    else:
+        logger.success(f"Image saved successfully to {image_path}")
 
 
 def view_image(image: cv2.Mat, title: Text):
@@ -28,7 +42,7 @@ def view_image(image: cv2.Mat, title: Text):
             break
 
 
-def draw_grid(img, grid_shape, color=(0, 255, 0), thickness=1):
+def draw_grid(img, grid_shape=(6, 5), color=(0, 255, 0), thickness=1):
     import numpy as np
 
     h, w, _ = img.shape

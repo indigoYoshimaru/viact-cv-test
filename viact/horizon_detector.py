@@ -81,6 +81,7 @@ class HorizonDetector(ABC):
         theta = result_dict["theta"]
         # the line is already level
         if np.sin(theta) == 1:
+            logger.info(f"Sin(theta) = 1. Line already level")
             if verbose:
                 view_image(result_dict["image_line_drawn"], "Sin(theta) = 1")
             return image, result_dict
@@ -109,14 +110,15 @@ class HorizonDetector(ABC):
 
             vis_cropped_image = self.crop_black_background(vis_rotated_image)
             vis_cropped_image_with_grid = draw_grid(
-                vis_cropped_image, grid_shape=(6, 5), color=(0, 0, 255)
+                vis_cropped_image, color=(0, 0, 255)
             )
             view_image(
                 vis_cropped_image_with_grid,
                 "Leveled and Black boundary cropped with grid",
             )
+            return cropped_image, vis_cropped_image_with_grid
 
-        return cropped_image
+        return cropped_image, None
 
 
 class HorizonDetectorOpenCV(HorizonDetector, BaseModel):

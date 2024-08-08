@@ -13,10 +13,10 @@ def detect_horizon(
     with_color_segment: bool = False,
     num_cluster: int = 4,
     horizon_estimate_y: float = 1 / 4,
-    houghline_thres: int = 90,
+    houghline_thres: int = 200,
     verbose: bool = False,
 ):
-    from viact.utils import read_image
+    from viact.utils import read_image, save_image
     from viact.horizon_detector import HorizonDetectorOpenCV
 
     image, image_shape = read_image(image_path)
@@ -31,11 +31,19 @@ def detect_horizon(
         verbose=verbose,
     )
 
-    cropped_image = detector.post_process(
+    cropped_image, vis_cropped_image_with_grid = detector.post_process(
         image=image,
         result_dict=result_dict,
         verbose=verbose,
     )
+
+    image_name = f"{image_path.split('/')[-1].split('.')[0]}_horizon"
+
+    save_image(image=cropped_image, image_name=f"{image_name}.tiff")
+    if verbose:
+        save_image(
+            image=vis_cropped_image_with_grid, image_name=f"{image_name}_vis.tiff"
+        )
 
 
 @app.command(name="ship-detect", help="Run ship detection")
