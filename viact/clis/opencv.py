@@ -23,33 +23,48 @@ def detect_horizon(
     detector = HorizonDetectorOpenCV(
         with_color_segment=with_color_segment,
         houghline_thres=houghline_thres,
+        verbose=verbose,
     )
     result_dict = detector(
         image=image,
         num_cluster=num_cluster,
         horizon_estimate_y=horizon_estimate_y,
-        verbose=verbose,
     )
 
-    cropped_image, vis_cropped_image_with_grid = detector.post_process(
+    result_dict = detector.post_process(
         image=image,
         result_dict=result_dict,
-        verbose=verbose,
     )
+
+    image_postprocess = result_dict["image_postprocess"]
 
     image_name = f"{image_path.split('/')[-1].split('.')[0]}_horizon"
 
-    save_image(image=cropped_image, image_name=f"{image_name}.tiff")
+    save_image(image=image_postprocess, image_name=f"{image_name}.tiff")
     if verbose:
-        save_image(
-            image=vis_cropped_image_with_grid, image_name=f"{image_name}_vis.tiff"
-        )
+        image_postprocess_grid = result_dict["image_postprocess_grid"]
+        save_image(image=image_postprocess_grid, image_name=f"{image_name}_vis.tiff")
 
 
 @app.command(name="ship-detect", help="Run ship detection")
 def detect_ship(
-    image_path: str = "image/three_ships_horizone.JPG",
-): ...
+    image_path: str = "image/three_ships_horizon.JPG",
+    ship_loc_is_upper: bool = True,
+    houghline_thres: int = 200,
+    verbose: bool = False,
+):
+    from viact.utils import read_image, save_image
+    from viact.ship_detector import ShipDetectorOpenCV
+
+    image, image_shape = read_image(image_path)
+    ship_detector = ShipDetectorOpenCV(verbose=verbose)
+    ship_detected_image = ship_detector(
+        image,
+        houghline_thres,
+        ship_loc_is_upper,
+    )
+    image_name = f"{image_path.split('/')[-1].split('.')[0]}_ship_detected.tiff"
+    save_image(image=ship_detected_image, image_name=image_name)
 
 
 @app.command(

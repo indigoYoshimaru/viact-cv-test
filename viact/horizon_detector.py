@@ -3,13 +3,13 @@ from abc import ABC
 from pydantic import BaseModel
 from loguru import logger
 import numpy as np
-from typing import Dict
-from viact.utils import view_image
+from typing import Dict, Tuple
+from viact.utils import view_image, draw_grid
 
 
 class HorizonDetector(ABC):
 
-    def level_horizon(self, image: cv2.Mat, start_point: tuple, end_point: tuple):
+    def level_horizon(self, image: cv2.Mat, start_point: Tuple, end_point: Tuple):
         try:
             # calculate the level angle
             level_angle = np.degrees(
@@ -76,15 +76,24 @@ class HorizonDetector(ABC):
             logger.success(f"Image cropped successfully")
             return cropped_image
 
-    def post_process(self, image, result_dict: Dict, verbose: bool = False):
+    def post_process(self, image, result_dict: Dict):
 
         theta = result_dict["theta"]
         # the line is already level
         if np.sin(theta) == 1:
             logger.info(f"Sin(theta) = 1. Line already level")
-            if verbose:
-                view_image(result_dict["image_line_drawn"], "Sin(theta) = 1")
-            return image, result_dict
+            if self.verbose:
+                image_vis = result_dict["image_line_drawn"]
+                image_vis = draw_grid(image_vis, color=(0, 0, 255))
+                view_image(
+                    image_vis,
+                    "Leveled and Black boundary cropped with grid",
+                )
+                result_dict["image_postprocess_grid"] = image_vis
+
+            del result_dict["image_line_drawn"]
+            result_dict["image_postprocess"] = image
+            return result_dict
 
         start_point = result_dict["start_point"]
         end_point = result_dict["end_point"]
@@ -96,7 +105,7 @@ class HorizonDetector(ABC):
             end_point=end_point,
         )
 
-        if verbose:
+        if self.verbose:
             vis_rotated_image = self.level_horizon(
                 line_draw_img,
                 start_point=start_point,
@@ -105,8 +114,7 @@ class HorizonDetector(ABC):
             view_image(vis_rotated_image, "Rotated image")
 
         cropped_image = self.crop_black_background(rotated_image)
-        if verbose:
-            from viact.utils import draw_grid
+        if self.verbose:
 
             vis_cropped_image = self.crop_black_background(vis_rotated_image)
             vis_cropped_image_with_grid = draw_grid(
@@ -116,14 +124,18 @@ class HorizonDetector(ABC):
                 vis_cropped_image_with_grid,
                 "Leveled and Black boundary cropped with grid",
             )
-            return cropped_image, vis_cropped_image_with_grid
 
-        return cropped_image, None
+            result_dict["image_postprocess_grid"] = vis_cropped_image_with_grid
+
+        del result_dict["image_line_drawn"]
+        result_dict["image_postprocess"] = cropped_image
+        return result_dict
 
 
 class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
     with_color_segment: bool
     houghline_thres: int
+    verbose: bool 
 
     class Config:
         arbitrary_types_allowed = True
@@ -167,7 +179,7 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
         )
         return blur_img
 
-    def __polar_to_points(self, line: np.ndarray, image_shape: tuple):
+    def __polar_to_points(self, line: np.ndarray, image_shape: Tuple):
         height, width, depth = image_shape
         rho, theta = line[0][0], line[0][1]
 
@@ -185,14 +197,13 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
         preprocessed_image: cv2.Mat,
         houghline_thres: int,
         houghline_rho: int,
-        verbose: bool = False,
     ):
 
         gray_img = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2GRAY)
         ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
         edges = cv2.Canny(thresh, 50, 150, apertureSize=5)
 
-        if verbose:
+        if self.verbose:
             view_image(edges, "Edges detection")
 
         lines = cv2.HoughLines(
@@ -209,8 +220,6 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
         image: cv2.Mat,
         horizon_estimate_y: float = 1 / 4,
         num_cluster: int = 4,
-        houghline_thres: int = 200,
-        verbose: bool = False,
     ):
         from viact.utils import view_image
 
@@ -231,7 +240,7 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
                 image,
                 **dict(horizon_estimate_y=horizon_estimate_y, num_cluster=num_cluster),
             )
-            if verbose:
+            if self.verbose:
                 view_image(preprocessed_image, "Preprocessed image")
         except Exception as e:
             logger.error(f"{type(e).__name__}: {e}. Cannot preprocess image")
@@ -240,14 +249,13 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
         try:
             lines = self.detect_lines(
                 preprocessed_image=preprocessed_image,
-                houghline_thres=houghline_thres,
+                houghline_thres=self.houghline_thres,
                 houghline_rho=houghline_rho_dict[self.with_color_segment],
-                verbose=verbose,
             )
             line = lines[0]
             start_point, end_point = self.__polar_to_points(line, image.shape)
             image_line_drawn = image.copy()
-            if verbose:
+            if self.verbose:
                 cv2.line(image_line_drawn, start_point, end_point, (0, 255, 0), 2)
                 view_image(image_line_drawn, "Horizon detected")
 
