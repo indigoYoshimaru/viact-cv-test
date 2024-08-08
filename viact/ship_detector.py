@@ -82,9 +82,8 @@ class ShipDetectorOpenCV(ShipDetector, BaseModel):
                 x, y, w, h = cv2.boundingRect(contour)
                 if not ship_loc_is_upper:
                     y += y_loc
-                # close to camera point but too small area
+                # close to camera point but too small area -> high chances is not ship!
                 if (y+w)/height>0.7 and cv2.contourArea(contour)<2000: 
-                    print(cv2.contourArea(contour), w*h)
                     continue
                 logger.info(f"Bounding box: {x=}; {y=}; {w=}; {h=}")
                 cv2.rectangle(image, (x, y), (x + w, y + h + 2), (0, 255, 0), 2)
