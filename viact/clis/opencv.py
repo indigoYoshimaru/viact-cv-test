@@ -1,6 +1,6 @@
-from typer import Typer
+import typer
 
-app = Typer(
+app = typer.Typer(
     name="opencv",
     help="Detector using OpenCV",
     no_args_is_help=True,
@@ -9,12 +9,28 @@ app = Typer(
 
 @app.command(name="horizon-detect", help="Run horizon detection")
 def detect_horizon(
-    image_path: str = "image/three_ships_horizon.JPG",
-    with_color_segment: bool = False,
-    num_cluster: int = 4,
-    horizon_estimate_y: float = 1 / 4,
-    houghline_thres: int = 200,
-    verbose: bool = False,
+    image_path: str = typer.Option(
+        default="image/three_ships_horizon.JPG",
+        help="Path of your image",
+    ),
+    with_color_segment: bool = typer.Option(
+        default=False,
+        help="Run horizon detection with color segmentation. No horizon_estimate_y needed.",
+    ),
+    num_cluster: int = typer.Option(
+        default=4,
+        help="Number of color cluster",
+    ),
+    horizon_estimate_y: float = typer.Option(
+        default=1 / 4,
+        help="The y over image's height ratio of your image to estimate the region of your horizon",
+    ),
+    houghline_thres: int = typer.Option(
+        default=200, help="Threshold for Houghline detection"
+    ),
+    verbose: bool = typer.Option(
+        default=False, help="Enable verbose to view result of each step and save the horizon line drawn image."
+    ),
 ):
     from viact.utils import read_image, save_image
     from viact.horizon_detector import HorizonDetectorOpenCV
@@ -50,10 +66,19 @@ def detect_horizon(
 
 @app.command(name="ship-detect", help="Run ship detection")
 def detect_ship(
-    image_path: str = "image/three_ships_horizon.JPG",
-    ship_loc_is_upper: bool = True,
-    houghline_thres: int = 200,
-    verbose: bool = False,
+    image_path: str = typer.Option(
+        default="result/three_ships_horizon_horizon.tiff",
+        help="Path to your image",
+    ),
+    ship_loc_is_upper: bool = typer.Option(
+        default=True, help="Enable if your ships are above the horizon line"
+    ),
+    houghline_thres: int = typer.Option(
+        default=200, help="Threshold for Houghline detection"
+    ),
+    verbose: bool = typer.Option(
+        default=False, help="Enable verbose to view result of each step"
+    ),
 ):
     from viact.utils import read_image, save_image
     from viact.ship_detector import ShipDetectorOpenCV
@@ -74,13 +99,31 @@ def detect_ship(
     help="Run end-to-end pipeline, including horizon and ship detection",
 )
 def run_e2e(
-    image_path: str = "image/three_ships_horizon.JPG",
-    with_color_segment: bool = False,
-    num_cluster: int = 4,
-    horizon_estimate_y: float = 1 / 4,
-    houghline_thres: int = 200,
-    verbose: bool = False,
-    ship_loc_is_upper: bool = True,
+    image_path: str = typer.Option(
+        default="image/three_ships_horizon.JPG",
+        help="Path of your image",
+    ),
+    with_color_segment: bool = typer.Option(
+        default=False,
+        help="Run horizon detection with color segmentation. No horizon_estimate_y needed.",
+    ),
+    num_cluster: int = typer.Option(
+        default=4,
+        help="Number of color cluster",
+    ),
+    horizon_estimate_y: float = typer.Option(
+        default=1 / 4,
+        help="The y over image's height ratio of your image to estimate the region of your horizon",
+    ),
+    houghline_thres: int = typer.Option(
+        default=200, help="Threshold for Houghline detection"
+    ),
+    verbose: bool = typer.Option(
+        default=False, help="Enable verbose to view result of each step"
+    ),
+    ship_loc_is_upper: bool = typer.Option(
+        default=True, help="Enable if your ships are above the horizon line"
+    ),
 ):
     from viact.utils import save_image
     from viact.ship_detector import ShipDetectorOpenCV
