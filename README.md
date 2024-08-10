@@ -56,7 +56,7 @@ For other images, you can modify the `--horizon-estimate-y` option if you can es
 - Detect horizon:
   - Command: 
   ```
-  viact opencv horizon-detect --image-path image/ship_new_test.jpg --with-color-segment --no-ship-loc-is-upper
+  viact opencv horizon-detect --image-path image/ship_new_test.jpg --with-color-segment --verbose
   ```
   - Result: 
   ![Result with horizon detection and grid from another image](image/docs/ship_new_test_horizon_vis.png "Result with horizon detection and grid from another image")
