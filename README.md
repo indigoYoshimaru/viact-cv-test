@@ -56,7 +56,7 @@ For other images, you can modify the `--horizon-estimate-y` option if you can es
 - Detect horizon:
   - Command: 
   ```
-  viact opencv horizon-detect --image-path image/ship_new_test.jpg --with-color-segment --no-ship-loc-is-upper
+  viact opencv horizon-detect --image-path image/ship_new_test.jpg --with-color-segment --verbose
   ```
   - Result: 
   ![Result with horizon detection and grid from another image](image/docs/ship_new_test_horizon_vis.png "Result with horizon detection and grid from another image")
@@ -84,8 +84,8 @@ To detect the horizon, I use Canny edge detection and Hough Line transform on th
 
     ```python
     gray_img = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2GRAY)
-    ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
-    edges = cv2.Canny(thresh, 50, 150, apertureSize=5)
+    ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_TOZERO)
+    edges = cv2.Canny(thresh, 50, 150, apertureSize=3)
 
     lines = cv2.HoughLines(
         edges,
