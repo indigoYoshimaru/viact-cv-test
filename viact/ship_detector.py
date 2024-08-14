@@ -61,7 +61,7 @@ class ShipDetectorOpenCV(ShipDetector, BaseModel):
             start_point = result_dict["start_point"]
             end_point = result_dict["end_point"]
             if ship_loc_is_upper:
-                y_loc = min(start_point[1], end_point[1]) - 6
+                y_loc = min(start_point[1], end_point[1]) 
             else:
                 y_loc = max(start_point[1], end_point[1]) + 6
         except Exception as e:
