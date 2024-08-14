@@ -200,8 +200,8 @@ class HorizonDetectorOpenCV(HorizonDetector, BaseModel):
     ):
 
         gray_img = cv2.cvtColor(preprocessed_image, cv2.COLOR_BGR2GRAY)
-        ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_OTSU)
-        edges = cv2.Canny(thresh, 50, 150, apertureSize=5)
+        ret, thresh = cv2.threshold(gray_img, 0, 255, cv2.THRESH_TOZERO)
+        edges = cv2.Canny(thresh, 50, 150, apertureSize=3)
 
         if self.verbose:
             view_image(edges, "Edges detection")
